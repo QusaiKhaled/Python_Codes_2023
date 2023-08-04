@@ -1,0 +1,124 @@
+import pandas as pd
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score
+from sklearn.tree import plot_tree
+import matplotlib.pyplot as plt
+from tqdm import tqdm  # Import tqdm
+
+# Read the data from the Excel file
+data = pd.read_excel('W2.xlsx', sheet_name='Y4shuffled')
+
+# Perform ordinal encoding for the 'Type' and 'Sediment' columns
+type_mapping = {'Caps': 1, 'Bottles': 2, 'Snickers': 3}
+sediment_mapping = {'yes': 1, 'no': 0}
+
+data['Type'] = data['Type'].map(type_mapping)
+data['Sediment'] = data['Sediment'].map(sediment_mapping)
+
+# Separate the features and target variable
+X = data[['Discharge', 'Sediment', 'Type']]
+y = data['Transportability']
+
+
+# Function to fit the regression tree model and calculate R-squared and partial R-squared
+def fit_and_evaluate_tree(X_train, X_test, y_train, y_test, min_samples_split, max_depth):
+    regressor = DecisionTreeRegressor(min_samples_leaf=50, min_samples_split=min_samples_split, max_depth=max_depth)
+    regressor.fit(X_train, y_train)
+
+    y_pred = regressor.predict(X_test)
+    r2 = r2_score(y_test, y_pred)
+
+    # Calculate partial R-squared for each variable
+    partial_r2 = {}
+    for column in X_train.columns:
+        X_train_partial = X_train.drop(column, axis=1)
+        X_test_partial = X_test.drop(column, axis=1)
+
+        regressor_partial = DecisionTreeRegressor(min_samples_split=min_samples_split, max_depth=max_depth)
+        regressor_partial.fit(X_train_partial, y_train)
+
+        y_pred_partial = regressor_partial.predict(X_test_partial)
+        r2_partial = r2_score(y_test, y_pred_partial)
+
+        partial_r2[column] = r2 - r2_partial
+
+    return r2, regressor, len(X_train), len(X_test), min_samples_split, max_depth, partial_r2
+
+
+# Simulation parameters
+num_iterations = 1000
+train_test_split_ratio = 0.2
+min_samples_split_values = [3, 4, 5, 6]
+max_depth_values = [3, 4, 5, 6]
+
+# Initialize variables to store the best model, R-squared, and partial R-squared for each variable
+best_r2 = -float("inf")
+best_regressor = None
+best_partial_r2 = {}
+
+# Run the simulation with tqdm to display progress bar
+for _ in tqdm(range(num_iterations)):
+    # Generate random train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=train_test_split_ratio)
+
+    for min_samples_split in min_samples_split_values:
+        for max_depth in max_depth_values:
+            # Fit and evaluate the regression tree model
+            r2, regressor, train_size, test_size, min_split, max_depth_val, partial_r2 = fit_and_evaluate_tree(X_train,
+                                                                                                               X_test,
+                                                                                                               y_train,
+                                                                                                               y_test,
+                                                                                                               min_samples_split,
+                                                                                                               max_depth)
+
+            # Check if the current model has a higher R-squared
+            if r2 > best_r2:
+                best_r2 = r2
+                best_regressor = regressor
+                best_train_size = train_size
+                best_test_size = test_size
+                best_min_split = min_split
+                best_max_depth = max_depth_val
+                best_partial_r2 = partial_r2
+
+# Print the best R-squared and the corresponding model
+print("Best R-squared:", best_r2)
+
+# Print additional information about the best model
+print("Best Model:")
+print(f"Train-Test Split: {100 * (1 - train_test_split_ratio)}% - {100 * train_test_split_ratio}%")
+print(f"min_samples_split: {best_min_split}")
+print(f"max_depth: {best_max_depth}")
+
+# Print the partial R-squared for each variable
+print("Partial R-squared:")
+for column, r2_partial in best_partial_r2.items():
+    print(f"{column}: {r2_partial:.6f}")
+
+
+# Print the tree's structure
+def print_tree_structure(tree, feature_names, node_id=0, indent=''):
+    if tree.children_left[node_id] == tree.children_right[node_id]:
+        value = tree.value[node_id][0][0]
+        print(f"{indent}Leaf: Predicted Value = {value:.6f}")
+        return
+
+    feature_index = tree.feature[node_id]
+    threshold = tree.threshold[node_id]
+    feature_name = feature_names[feature_index]
+    print(f"{indent}{feature_name} <= {threshold} ?")
+
+    left_child = tree.children_left[node_id]
+    print_tree_structure(tree, feature_names, left_child, indent + '  |--- ')
+
+    right_child = tree.children_right[node_id]
+    print_tree_structure(tree, feature_names, right_child, indent + '  |--- ')
+
+
+print_tree_structure(best_regressor.tree_, X.columns)
+
+# Visualize the tree
+plt.figure(figsize=(12, 8))
+plot_tree(best_regressor, feature_names=list(X.columns), filled=True, rounded=True, fontsize=10)
+plt.show()
