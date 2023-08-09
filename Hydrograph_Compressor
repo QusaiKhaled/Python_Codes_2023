@@ -1,0 +1,35 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Read the .txt file using NumPy
+file_path = 'SetPoint_2L_s (1).txt'
+data = np.loadtxt(file_path, delimiter=';', skiprows=1, usecols=(0, 1))
+
+# Original time range and flow values
+original_time = data[:, 0]
+flow_values = data[:, 1]
+
+# Perform time compression by scaling the original time range to a new range of 0 to 300 seconds
+compressed_time = (original_time / original_time[-1]) * 700
+
+# Create a new compressed array
+compressed_data = np.column_stack((compressed_time, flow_values))
+
+# Save compressed data to a text file with the same format as the original
+output_file_path = 'Compressed_Hydrograph.txt'
+header = '# Time [s]; Set flow [L/s];'
+np.savetxt(output_file_path, compressed_data, delimiter=';', header=header, comments='', fmt='%.2f')
+
+print(f"Compressed data saved to '{output_file_path}'.")
+
+# Plot the hydrograph using the compressed time range
+plt.figure(figsize=(10, 6))
+plt.plot(compressed_time, flow_values, label='Compressed Hydrograph')
+plt.xlabel('Time (s)')
+plt.ylabel('Flow')
+plt.title('Compressed Hydrograph')
+plt.legend()
+plt.grid()
+
+# Show the plot
+plt.show()
