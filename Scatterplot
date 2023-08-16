@@ -1,0 +1,78 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Load the data from the Excel files into pandas DataFrames (replace 'Data.xlsx' with your actual file names)
+data_sheet1 = pd.read_excel('data.xlsx', sheet_name='Sheet1')
+data_sheet2 = pd.read_excel('data.xlsx', sheet_name='Sheet2')
+
+# Extract the 'Discharge' and 'Transport_Frequency' columns from the first sheet
+x_values_sheet1 = data_sheet1['Discharge']
+y_values_sheet1 = data_sheet1['Transport_Frequency']
+
+# Extract the 'Discharge' and 'Transport_Frequency' columns from the second sheet
+x_values_sheet2 = data_sheet2['Discharge']
+y_values_sheet2 = data_sheet2['Transport_Frequency']
+
+# Create a scatter plot with points from the first sheet (blue circles)
+plt.figure(figsize=(10, 6))
+sheet1 = plt.scatter(x_values_sheet1, y_values_sheet1, color='blue', marker='o', s=40, label='Steady-Ramping E016')
+
+# Add scatter points from the second sheet (orange triangles)
+sheet2 = plt.scatter(x_values_sheet2, y_values_sheet2, color='orange', marker='^', s=20, label='0.5, 1.0, 2.0 l/s Exp4,5,6')
+
+# Plot the additional points with a custom marker style
+additional_points = {
+    0.2: 0.00,
+    0.4: 0.02,
+    0.6: 0.06,
+    0.8: 0.09,
+    1.0: 0.06,
+    1.2: 0.09,
+    1.4: 0.15,
+    1.6: 0.15,
+    1.8: 0.20,
+    2.0: 0.11
+}
+
+for discharge, avg_frequency in additional_points.items():
+    plt.scatter(discharge, avg_frequency, color='blue', marker='x', s=80)
+
+# Additional scatter points with orange X markers
+additional_scatter_points = {
+    0.5: 0.079679276,
+    1.0: 0.072347752,
+    2.0: 0.161246193
+}
+
+for discharge, frequency in additional_scatter_points.items():
+    plt.scatter(discharge, frequency, color='orange', marker='x', s=400)
+
+# Combine data from both sheets for polynomial fit
+combined_x_values = np.concatenate((x_values_sheet1, x_values_sheet2))
+combined_y_values = np.concatenate((y_values_sheet1, y_values_sheet2))
+
+# Fit a polynomial to the combined data
+degree = 4  # Choose the degree of the polynomial
+coefficients = np.polyfit(combined_x_values, combined_y_values, degree)
+poly_fit = np.poly1d(coefficients)
+x_fit = np.linspace(min(combined_x_values), max(combined_x_values), 100)
+y_fit = poly_fit(x_fit)
+
+# # Plot the polynomial fit
+# plt.plot(x_fit, y_fit, color='red', label='Polynomial Fit_Degree 4')
+
+plt.title('Scatter Plot of Discharge vs Transport Frequency')
+plt.xlabel('Discharge (l/s)')
+plt.ylabel('Transport Frequency (1/s)')
+plt.grid(True)
+
+# Add legends for the sheets, the average points, and the polynomial fit
+plt.legend(handles=[sheet1, sheet2,
+                     plt.Line2D([], [], color='blue', marker='x', markersize=8, linestyle='None', markerfacecolor='blue'),
+                     plt.Line2D([], [], color='orange', marker='x', markersize=8, linestyle='None', markerfacecolor='orange')],
+           labels=['Steady-Ramping E016', '0.5, 1.0, 2.0 l/s Exp4,5,6', 'Mean_E016', 'Mean_Exp4,5,6', 'Polynomial Fit_Degree 4'],
+           loc='upper left')
+
+# Show the plot
+plt.show()
